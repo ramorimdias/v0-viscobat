@@ -751,7 +751,7 @@ export function solve_complex_blend(
   }
 
   // Check if unique
-  const isUnique = variable.length <= 1 || targetX !== null
+  const isUnique = variable.length <= 1 || (targetX !== null && variable.length === 2)
 
   return {
     fractions: result,
