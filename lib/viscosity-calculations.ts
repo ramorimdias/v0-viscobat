@@ -750,13 +750,10 @@ export function solve_complex_blend(
     }
   }
 
-  // Check if unique
-  if (objective.kind === "component") {
-    const resolved = result[objective.componentIndex]
-    if (resolved !== undefined) {
-      variableRanges[String(objective.componentIndex)] = {
-        min: resolved,
-        max: resolved,
+  if (objective.kind !== "none") {
+    for (let i = 0; i < n; i++) {
+      if (result[i] !== undefined) {
+        variableRanges[String(i)] = { min: result[i], max: result[i] }
       }
     }
   }
