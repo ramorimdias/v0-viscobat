@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +23,42 @@ export function TargetViscosityTab() {
   const [baseB, setBaseB] = useState("")
   const [knownComponents, setKnownComponents] = useState<KnownComponent[]>([])
   const [result, setResult] = useState<{ percentA: number; percentB: number } | { error: string } | null>(null)
+
+  useEffect(() => {
+    const stored = localStorage.getItem("viscobat:target-viscosity")
+    if (!stored) return
+    try {
+      const parsed = JSON.parse(stored) as {
+        targetVisc?: string
+        baseA?: string
+        baseB?: string
+        knownComponents?: KnownComponent[]
+        result?: { percentA: number; percentB: number } | { error: string } | null
+      }
+      setTargetVisc(parsed.targetVisc ?? "")
+      setBaseA(parsed.baseA ?? "")
+      setBaseB(parsed.baseB ?? "")
+      setKnownComponents(parsed.knownComponents ?? [])
+      setResult(parsed.result ?? null)
+    } catch {
+      setTargetVisc("")
+      setBaseA("")
+      setBaseB("")
+      setKnownComponents([])
+      setResult(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    const payload = {
+      targetVisc,
+      baseA,
+      baseB,
+      knownComponents,
+      result,
+    }
+    localStorage.setItem("viscobat:target-viscosity", JSON.stringify(payload))
+  }, [targetVisc, baseA, baseB, knownComponents, result])
 
   const addKnown = () => {
     const newId = knownComponents.length > 0 ? Math.max(...knownComponents.map((c) => c.id)) + 1 : 1

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,6 +39,64 @@ export function ComplexBlendsTab() {
     diagnostics: { status: string; variableRanges: Record<string, { min: number; max: number }> }
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const stored = localStorage.getItem("viscobat:complex-blends")
+    if (!stored) return
+    try {
+      const parsed = JSON.parse(stored) as {
+        components?: SolverComponent[]
+        mixtureType?: ConstraintType
+        mixtureValue?: string
+        mixtureMin?: string
+        mixtureMax?: string
+        result?: {
+          fractions: Record<number, number>
+          viscosity: number
+          diagnostics: { status: string; variableRanges: Record<string, { min: number; max: number }> }
+        } | null
+        error?: string | null
+      }
+      setComponents(
+        parsed.components && parsed.components.length > 0
+          ? parsed.components
+          : [
+              { id: 1, name: "Base Oil A", viscosity: "", type: "free", value: "", min: "", max: "" },
+              { id: 2, name: "Base Oil B", viscosity: "", type: "free", value: "", min: "", max: "" },
+            ],
+      )
+      setMixtureType(parsed.mixtureType ?? "free")
+      setMixtureValue(parsed.mixtureValue ?? "")
+      setMixtureMin(parsed.mixtureMin ?? "")
+      setMixtureMax(parsed.mixtureMax ?? "")
+      setResult(parsed.result ?? null)
+      setError(parsed.error ?? null)
+    } catch {
+      setComponents([
+        { id: 1, name: "Base Oil A", viscosity: "", type: "free", value: "", min: "", max: "" },
+        { id: 2, name: "Base Oil B", viscosity: "", type: "free", value: "", min: "", max: "" },
+      ])
+      setMixtureType("free")
+      setMixtureValue("")
+      setMixtureMin("")
+      setMixtureMax("")
+      setResult(null)
+      setError(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    const payload = {
+      components,
+      mixtureType,
+      mixtureValue,
+      mixtureMin,
+      mixtureMax,
+      result,
+      error,
+    }
+    localStorage.setItem("viscobat:complex-blends", JSON.stringify(payload))
+  }, [components, mixtureType, mixtureValue, mixtureMin, mixtureMax, result, error])
 
   const addComponent = () => {
     const newId = Math.max(...components.map((c) => c.id), 0) + 1
