@@ -186,16 +186,47 @@ export function ComplexBlendsTab() {
             <CardContent className="space-y-3">
               {components.map((comp, index) => (
                 <div key={comp.id} className="p-4 rounded-lg bg-muted/50 space-y-3">
-                  <div className="flex items-center gap-3">
+                  <div className="grid gap-3 md:grid-cols-[auto,1fr,minmax(0,140px),minmax(0,180px),auto] items-center">
                     <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
                       {index + 1}
                     </div>
                     <Input
                       value={comp.name}
                       onChange={(e) => updateComponent(comp.id, "name", e.target.value)}
-                      className="flex-1 font-medium"
+                      className="font-medium"
                       placeholder={t("component")}
                     />
+                    <div className="space-y-1">
+                      <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {t("table_viscosity")} (mm²/s)
+                      </label>
+                      <Input
+                        type="number"
+                        step="any"
+                        min="0"
+                        value={comp.viscosity}
+                        onChange={(e) => updateComponent(comp.id, "viscosity", e.target.value)}
+                        className="font-mono"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {t("table_constraint")}
+                      </label>
+                      <Select value={comp.type} onValueChange={(val) => updateComponent(comp.id, "type", val)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {constraintOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
@@ -208,86 +239,56 @@ export function ComplexBlendsTab() {
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {t("table_viscosity")} (mm²/s)
-                      </label>
-                      <Input
-                        type="number"
-                        step="any"
-                        min="0"
-                        value={comp.viscosity}
-                        onChange={(e) => updateComponent(comp.id, "viscosity", e.target.value)}
-                        className="font-mono mt-1"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {t("table_constraint")}
-                      </label>
-                      <Select value={comp.type} onValueChange={(val) => updateComponent(comp.id, "type", val)}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {constraintOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {comp.type === "setValue" && (
-                      <div>
-                        <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                          {t("table_value")} (%)
-                        </label>
-                        <Input
-                          type="number"
-                          step="any"
-                          value={comp.value}
-                          onChange={(e) => updateComponent(comp.id, "value", e.target.value)}
-                          className="font-mono mt-1"
-                          placeholder="%"
-                        />
-                      </div>
-                    )}
-
-                    {comp.type === "range" && (
-                      <>
+                  {(comp.type === "setValue" || comp.type === "range") && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {comp.type === "setValue" && (
                         <div>
                           <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                            {t("solver_min_value")} %
+                            {t("table_value")} (%)
                           </label>
                           <Input
                             type="number"
                             step="any"
-                            value={comp.min}
-                            onChange={(e) => updateComponent(comp.id, "min", e.target.value)}
+                            value={comp.value}
+                            onChange={(e) => updateComponent(comp.id, "value", e.target.value)}
                             className="font-mono mt-1"
-                            placeholder="0"
+                            placeholder="%"
                           />
                         </div>
-                        <div>
-                          <label className="text-xs uppercase tracking-wide text-muted-foreground">
-                            {t("solver_max_value")} %
-                          </label>
-                          <Input
-                            type="number"
-                            step="any"
-                            value={comp.max}
-                            onChange={(e) => updateComponent(comp.id, "max", e.target.value)}
-                            className="font-mono mt-1"
-                            placeholder="100"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
+                      )}
+
+                      {comp.type === "range" && (
+                        <>
+                          <div>
+                            <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                              {t("solver_min_value")} %
+                            </label>
+                            <Input
+                              type="number"
+                              step="any"
+                              value={comp.min}
+                              onChange={(e) => updateComponent(comp.id, "min", e.target.value)}
+                              className="font-mono mt-1"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                              {t("solver_max_value")} %
+                            </label>
+                            <Input
+                              type="number"
+                              step="any"
+                              value={comp.max}
+                              onChange={(e) => updateComponent(comp.id, "max", e.target.value)}
+                              className="font-mono mt-1"
+                              placeholder="100"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </CardContent>
