@@ -751,7 +751,20 @@ export function solve_complex_blend(
   }
 
   // Check if unique
-  const isUnique = variable.length <= 1 || (targetX !== null && variable.length === 2)
+  if (objective.kind === "component") {
+    const resolved = result[objective.componentIndex]
+    if (resolved !== undefined) {
+      variableRanges[String(objective.componentIndex)] = {
+        min: resolved,
+        max: resolved,
+      }
+    }
+  }
+
+  const isUnique =
+    objective.kind !== "none" ||
+    variable.length <= 1 ||
+    (targetX !== null && variable.length === 2)
 
   return {
     fractions: result,
