@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,42 @@ export function ViscosityIndexTab() {
   const [v2, setV2] = useState("")
   const [t2, setT2] = useState("100")
   const [result, setResult] = useState<{ v40: number; v100: number; vi: number } | null>(null)
+
+  useEffect(() => {
+    const stored = localStorage.getItem("viscobat:viscosity-index")
+    if (!stored) return
+    try {
+      const parsed = JSON.parse(stored) as {
+        v1?: string
+        t1?: string
+        v2?: string
+        t2?: string
+        result?: { v40: number; v100: number; vi: number } | null
+      }
+      setV1(parsed.v1 ?? "")
+      setT1(parsed.t1 ?? "40")
+      setV2(parsed.v2 ?? "")
+      setT2(parsed.t2 ?? "100")
+      setResult(parsed.result ?? null)
+    } catch {
+      setV1("")
+      setT1("40")
+      setV2("")
+      setT2("100")
+      setResult(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    const payload = {
+      v1,
+      t1,
+      v2,
+      t2,
+      result,
+    }
+    localStorage.setItem("viscobat:viscosity-index", JSON.stringify(payload))
+  }, [v1, t1, v2, t2, result])
 
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,40 @@ export function MixtureTab() {
     { id: 2, percent: "", viscosity: "" },
   ])
   const [result, setResult] = useState<{ viscosity: number } | { error: string } | null>(null)
+
+  useEffect(() => {
+    const stored = localStorage.getItem("viscobat:mixture")
+    if (!stored) return
+    try {
+      const parsed = JSON.parse(stored) as {
+        components?: Component[]
+        result?: { viscosity: number } | { error: string } | null
+      }
+      setComponents(
+        parsed.components && parsed.components.length > 0
+          ? parsed.components
+          : [
+              { id: 1, percent: "", viscosity: "" },
+              { id: 2, percent: "", viscosity: "" },
+            ],
+      )
+      setResult(parsed.result ?? null)
+    } catch {
+      setComponents([
+        { id: 1, percent: "", viscosity: "" },
+        { id: 2, percent: "", viscosity: "" },
+      ])
+      setResult(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    const payload = {
+      components,
+      result,
+    }
+    localStorage.setItem("viscobat:mixture", JSON.stringify(payload))
+  }, [components, result])
 
   const addComponent = () => {
     const newId = Math.max(...components.map((c) => c.id), 0) + 1

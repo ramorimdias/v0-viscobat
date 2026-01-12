@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,6 +56,108 @@ export function TemperatureExtrapolationTab() {
     chartData: { x: number; y: number }[]
     experimental: { x: number; y: number }[]
   } | null>(null)
+
+  useEffect(() => {
+    const stored = localStorage.getItem("viscobat:temperature-extrapolation")
+    if (!stored) return
+    try {
+      const parsed = JSON.parse(stored) as {
+        activeSubTab?: SubTab
+        kvPoints?: DataPoint[]
+        densityPoints?: DataPoint[]
+        cpPoints?: DataPoint[]
+        thermalPoints?: DataPoint[]
+        targetTemp?: string
+        kvResult?: {
+          table: { temp: number; value: number }[]
+          targetValue: number | null
+          equation: string
+          params: { slope: number; intercept: number }
+          chartData: { x: number; y: number }[]
+          experimental: { x: number; y: number }[]
+        } | null
+        linearResult?: {
+          table: { temp: number; value: number }[]
+          targetValue: number | null
+          equation: string
+          beta?: number
+          chartData: { x: number; y: number }[]
+          experimental: { x: number; y: number }[]
+        } | null
+      }
+      setActiveSubTab(parsed.activeSubTab ?? "kv")
+      setKvPoints(
+        parsed.kvPoints && parsed.kvPoints.length > 0
+          ? parsed.kvPoints
+          : [
+              { id: 1, temperature: "40", value: "" },
+              { id: 2, temperature: "100", value: "" },
+            ],
+      )
+      setDensityPoints(
+        parsed.densityPoints && parsed.densityPoints.length > 0
+          ? parsed.densityPoints
+          : [
+              { id: 1, temperature: "", value: "" },
+              { id: 2, temperature: "", value: "" },
+            ],
+      )
+      setCpPoints(
+        parsed.cpPoints && parsed.cpPoints.length > 0
+          ? parsed.cpPoints
+          : [
+              { id: 1, temperature: "", value: "" },
+              { id: 2, temperature: "", value: "" },
+            ],
+      )
+      setThermalPoints(
+        parsed.thermalPoints && parsed.thermalPoints.length > 0
+          ? parsed.thermalPoints
+          : [
+              { id: 1, temperature: "", value: "" },
+              { id: 2, temperature: "", value: "" },
+            ],
+      )
+      setTargetTemp(parsed.targetTemp ?? "20")
+      setKvResult(parsed.kvResult ?? null)
+      setLinearResult(parsed.linearResult ?? null)
+    } catch {
+      setActiveSubTab("kv")
+      setKvPoints([
+        { id: 1, temperature: "40", value: "" },
+        { id: 2, temperature: "100", value: "" },
+      ])
+      setDensityPoints([
+        { id: 1, temperature: "", value: "" },
+        { id: 2, temperature: "", value: "" },
+      ])
+      setCpPoints([
+        { id: 1, temperature: "", value: "" },
+        { id: 2, temperature: "", value: "" },
+      ])
+      setThermalPoints([
+        { id: 1, temperature: "", value: "" },
+        { id: 2, temperature: "", value: "" },
+      ])
+      setTargetTemp("20")
+      setKvResult(null)
+      setLinearResult(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    const payload = {
+      activeSubTab,
+      kvPoints,
+      densityPoints,
+      cpPoints,
+      thermalPoints,
+      targetTemp,
+      kvResult,
+      linearResult,
+    }
+    localStorage.setItem("viscobat:temperature-extrapolation", JSON.stringify(payload))
+  }, [activeSubTab, kvPoints, densityPoints, cpPoints, thermalPoints, targetTemp, kvResult, linearResult])
 
   const subTabs: { id: SubTab; labelKey: string; icon: React.ElementType; unit: string }[] = [
     { id: "kv", labelKey: "subtab_kv", icon: Droplets, unit: "mm²/s" },
