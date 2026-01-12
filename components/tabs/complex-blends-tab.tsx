@@ -186,30 +186,17 @@ export function ComplexBlendsTab() {
             <CardContent className="space-y-3">
               {components.map((comp, index) => (
                 <div key={comp.id} className="p-4 rounded-lg bg-muted/50 space-y-3">
-                  <div className="flex items-center gap-3">
+                  <div className="grid gap-3 md:grid-cols-[auto,1fr,minmax(0,140px),minmax(0,180px),minmax(0,140px),minmax(0,140px),auto] items-center">
                     <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
                       {index + 1}
                     </div>
                     <Input
                       value={comp.name}
                       onChange={(e) => updateComponent(comp.id, "name", e.target.value)}
-                      className="flex-1 font-medium"
+                      className="font-medium"
                       placeholder={t("component")}
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeComponent(comp.id)}
-                      disabled={components.length <= 2}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
+                    <div className="space-y-1 md:col-start-3">
                       <label className="text-xs uppercase tracking-wide text-muted-foreground">
                         {t("table_viscosity")} (mm²/s)
                       </label>
@@ -219,16 +206,16 @@ export function ComplexBlendsTab() {
                         min="0"
                         value={comp.viscosity}
                         onChange={(e) => updateComponent(comp.id, "viscosity", e.target.value)}
-                        className="font-mono mt-1"
+                        className="font-mono"
                         placeholder="0"
                       />
                     </div>
-                    <div>
+                    <div className="space-y-1 md:col-start-4">
                       <label className="text-xs uppercase tracking-wide text-muted-foreground">
                         {t("table_constraint")}
                       </label>
                       <Select value={comp.type} onValueChange={(val) => updateComponent(comp.id, "type", val)}>
-                        <SelectTrigger className="mt-1">
+                        <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -240,9 +227,8 @@ export function ComplexBlendsTab() {
                         </SelectContent>
                       </Select>
                     </div>
-
                     {comp.type === "setValue" && (
-                      <div>
+                      <div className="space-y-1 md:col-start-5">
                         <label className="text-xs uppercase tracking-wide text-muted-foreground">
                           {t("table_value")} (%)
                         </label>
@@ -251,7 +237,7 @@ export function ComplexBlendsTab() {
                           step="any"
                           value={comp.value}
                           onChange={(e) => updateComponent(comp.id, "value", e.target.value)}
-                          className="font-mono mt-1"
+                          className="font-mono"
                           placeholder="%"
                         />
                       </div>
@@ -259,7 +245,7 @@ export function ComplexBlendsTab() {
 
                     {comp.type === "range" && (
                       <>
-                        <div>
+                        <div className="space-y-1 md:col-start-5">
                           <label className="text-xs uppercase tracking-wide text-muted-foreground">
                             {t("solver_min_value")} %
                           </label>
@@ -268,11 +254,11 @@ export function ComplexBlendsTab() {
                             step="any"
                             value={comp.min}
                             onChange={(e) => updateComponent(comp.id, "min", e.target.value)}
-                            className="font-mono mt-1"
+                            className="font-mono"
                             placeholder="0"
                           />
                         </div>
-                        <div>
+                        <div className="space-y-1 md:col-start-6">
                           <label className="text-xs uppercase tracking-wide text-muted-foreground">
                             {t("solver_max_value")} %
                           </label>
@@ -281,12 +267,22 @@ export function ComplexBlendsTab() {
                             step="any"
                             value={comp.max}
                             onChange={(e) => updateComponent(comp.id, "max", e.target.value)}
-                            className="font-mono mt-1"
+                            className="font-mono"
                             placeholder="100"
                           />
                         </div>
                       </>
                     )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeComponent(comp.id)}
+                      disabled={components.length <= 2}
+                      className="text-muted-foreground hover:text-destructive md:col-start-7"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -412,7 +408,9 @@ export function ComplexBlendsTab() {
                   const range = result.diagnostics.variableRanges[String(idx)]
                   return (
                     <div key={comp.id} className="p-3 rounded-lg bg-muted">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{comp.name}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 truncate">
+                        {comp.name}
+                      </p>
                       <p className="text-2xl font-bold font-mono">{fraction?.toFixed(2) ?? "—"}%</p>
                       {range && (
                         <p className="text-xs text-muted-foreground mt-1">
