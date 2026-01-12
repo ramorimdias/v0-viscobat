@@ -252,6 +252,7 @@ export function solve_complex_blend(
   components: SolverComponent[],
   mixture: SolverMixture,
 ): SolverResult | { error: string } {
+  const EPS = 1e-9
   const n = components.length
   if (n === 0) return { error: "No components supplied" }
 
@@ -309,7 +310,7 @@ export function solve_complex_blend(
     }
   }
 
-  if (fixed_sum > 1 + 1e-9) {
+  if (fixed_sum > 1 + EPS) {
     return { error: "Sum of fixed component fractions exceeds 100%" }
   }
 
@@ -346,14 +347,8 @@ export function solve_complex_blend(
     }
   }
 
-  // Simple solver for 2-variable case or iterate for solution
   const remaining = 1 - fixed_sum
 
-  // For simple cases, try to find a solution iteratively
-  // This is a simplified solver - for complex cases, would need proper LP
-  const m = variable.length
-
-  // Check mixture constraint
   let targetX: number | null = null
   let minX: number | null = null
   let maxX: number | null = null
@@ -365,69 +360,330 @@ export function solve_complex_blend(
     if (mixture.max !== undefined) maxX = walther_x(mixture.max)
   }
 
-  // Simple solution approach
-  const fractions: number[] = new Array(n).fill(0)
-  for (const f of fixed) {
-    fractions[f.index] = f.fraction
+  const totalLb = variable.reduce((acc, v) => acc + v.lb, 0)
+  const totalUb = variable.reduce((acc, v) => acc + v.ub, 0)
+  if (remaining < totalLb - EPS || remaining > totalUb + EPS) {
+    return { error: "Component constraints cannot sum to 100%" }
   }
 
-  // For 2 variable components with target viscosity
-  if (m === 2 && targetX !== null) {
-    const v0 = variable[0]
-    const v1 = variable[1]
+  type Objective =
+    | { kind: "none" }
+    | { kind: "mixture"; direction: "min" | "max" }
+    | { kind: "component"; direction: "min" | "max"; componentIndex: number }
 
-    // p0 * x0 + p1 * x1 + fixed_x = targetX
-    // p0 + p1 = remaining
-    // => p0 * x0 + (remaining - p0) * x1 + fixed_x = targetX
-    // => p0 * (x0 - x1) = targetX - fixed_x - remaining * x1
-    // => p0 = (targetX - fixed_x - remaining * x1) / (x0 - x1)
+  const componentObjectiveIndex = components.findIndex(
+    (comp) => comp.type === "objectiveMin" || comp.type === "objectiveMax",
+  )
+  const objective: Objective =
+    mixture.type === "objectiveMin"
+      ? { kind: "mixture", direction: "min" }
+      : mixture.type === "objectiveMax"
+        ? { kind: "mixture", direction: "max" }
+        : componentObjectiveIndex >= 0
+          ? {
+              kind: "component",
+              direction: components[componentObjectiveIndex].type === "objectiveMax" ? "max" : "min",
+              componentIndex: componentObjectiveIndex,
+            }
+          : { kind: "none" }
 
-    const denom = v0.x - v1.x
-    if (Math.abs(denom) > 1e-12) {
-      let p0 = (targetX - fixed_x_contrib - remaining * v1.x) / denom
-      let p1 = remaining - p0
+  const initFractions = () => {
+    const fractions = new Array(n).fill(0)
+    for (const f of fixed) {
+      fractions[f.index] = f.fraction
+    }
+    return fractions
+  }
 
-      // Clamp to bounds
-      p0 = Math.max(v0.lb, Math.min(v0.ub, p0))
-      p1 = Math.max(v1.lb, Math.min(v1.ub, p1))
+  const computeXRange = () => {
+    const baseX = variable.reduce((acc, v) => acc + v.lb * v.x, 0)
+    const capacities = variable.map((v) => v.ub - v.lb)
+    const remainingMass = remaining - totalLb
 
-      // Normalize if needed
-      const varSum = p0 + p1
-      if (Math.abs(varSum - remaining) > 1e-6 && varSum > 0) {
-        const scale = remaining / varSum
-        p0 *= scale
-        p1 *= scale
+    const sortedAsc = variable
+      .map((v, idx) => ({ ...v, idx }))
+      .sort((a, b) => a.x - b.x)
+    const sortedDesc = [...sortedAsc].reverse()
+
+    const fill = (order: typeof sortedAsc) => {
+      let rem = remainingMass
+      let xTotal = baseX
+      for (const entry of order) {
+        if (rem <= EPS) break
+        const cap = capacities[entry.idx]
+        const add = Math.min(cap, rem)
+        xTotal += add * entry.x
+        rem -= add
       }
+      return xTotal
+    }
 
-      fractions[v0.index] = p0
-      fractions[v1.index] = p1
-    } else {
-      // Equal x values, distribute equally
-      const each = remaining / 2
-      fractions[v0.index] = Math.max(v0.lb, Math.min(v0.ub, each))
-      fractions[v1.index] = Math.max(v1.lb, Math.min(v1.ub, each))
-    }
-  } else if (m >= 1) {
-    // Distribute remaining proportionally or equally
-    let allocated = 0
-    for (let i = 0; i < m - 1; i++) {
+    return { min: fill(sortedAsc), max: fill(sortedDesc) }
+  }
+
+  const distributeEvenly = (fractions: number[], capacities: number[]) => {
+    let rem = remaining - totalLb
+    const active = new Set(variable.map((v) => v.index))
+    const capMap: Record<number, number> = {}
+    for (let i = 0; i < variable.length; i++) {
       const v = variable[i]
-      const share = remaining / m
-      const clamped = Math.max(v.lb, Math.min(v.ub, share))
-      fractions[v.index] = clamped
-      allocated += clamped
+      capMap[v.index] = capacities[i]
+      fractions[v.index] = v.lb
     }
-    // Last variable gets the rest
-    const last = variable[m - 1]
-    const lastShare = Math.max(0, remaining - allocated)
-    fractions[last.index] = Math.max(last.lb, Math.min(last.ub, lastShare))
+
+    while (rem > EPS && active.size > 0) {
+      const share = rem / active.size
+      for (const idx of Array.from(active)) {
+        const cap = capMap[idx]
+        const add = Math.min(cap, share)
+        fractions[idx] += add
+        rem -= add
+        capMap[idx] -= add
+        if (capMap[idx] <= EPS) {
+          active.delete(idx)
+        }
+      }
+    }
+  }
+
+  const solveWithoutXConstraint = (objectiveChoice: Objective) => {
+    const fractions = initFractions()
+    const capacities = variable.map((v) => v.ub - v.lb)
+
+    if (objectiveChoice.kind === "none") {
+      distributeEvenly(fractions, capacities)
+      return fractions
+    }
+
+    const coefficients =
+      objectiveChoice.kind === "mixture"
+        ? variable.map((v) => v.x)
+        : variable.map((v) => (v.index === objectiveChoice.componentIndex ? 1 : 0))
+
+    const order = variable
+      .map((v, idx) => ({ ...v, idx, coeff: coefficients[idx] }))
+      .sort((a, b) =>
+        objectiveChoice.kind === "component" || objectiveChoice.kind === "mixture"
+          ? objectiveChoice.direction === "min"
+            ? a.coeff - b.coeff
+            : b.coeff - a.coeff
+          : 0,
+      )
+
+    for (const entry of order) {
+      fractions[entry.index] = entry.lb
+    }
+
+    let rem = remaining - totalLb
+    for (const entry of order) {
+      if (rem <= EPS) break
+      const cap = entry.ub - entry.lb
+      const add = Math.min(cap, rem)
+      fractions[entry.index] += add
+      rem -= add
+    }
+
+    return fractions
+  }
+
+  const solveWithTargetX = (target: number, objectiveChoice: Objective) => {
+    const targetVarX = target - fixed_x_contrib
+    const fractions = initFractions()
+    if (variable.length === 1) {
+      const v = variable[0]
+      const p = remaining
+      if (p < v.lb - EPS || p > v.ub + EPS) return null
+      if (Math.abs(p * v.x - targetVarX) > 1e-6) return null
+      fractions[v.index] = p
+      return fractions
+    }
+
+    const targetRemaining = remaining
+    let bestFractions: number[] | null = null
+    let bestScore: number | null = null
+
+    const indices = variable.map((v) => v.index)
+    const variableByIndex: Record<number, (typeof variable)[number]> = {}
+    for (const v of variable) {
+      variableByIndex[v.index] = v
+    }
+
+    const midpoints: Record<number, number> = {}
+    for (const v of variable) {
+      midpoints[v.index] = (v.lb + v.ub) / 2
+    }
+
+    for (let i = 0; i < indices.length; i++) {
+      for (let j = i + 1; j < indices.length; j++) {
+        const idxA = indices[i]
+        const idxB = indices[j]
+        const others = indices.filter((idx) => idx !== idxA && idx !== idxB)
+        const combos = Math.pow(2, others.length)
+
+        if (combos > 200000) {
+          continue
+        }
+
+        for (let mask = 0; mask < combos; mask++) {
+          let sumP = 0
+          let sumX = 0
+          for (let k = 0; k < others.length; k++) {
+            const idx = others[k]
+            const v = variableByIndex[idx]
+            const useUpper = (mask >> k) & 1
+            const val = useUpper ? v.ub : v.lb
+            sumP += val
+            sumX += val * v.x
+          }
+
+          const remainingP = targetRemaining - sumP
+          const remainingX = targetVarX - sumX
+
+          if (remainingP < -EPS) continue
+
+          const vA = variableByIndex[idxA]
+          const vB = variableByIndex[idxB]
+          let pA: number
+          let pB: number
+
+          const denom = vA.x - vB.x
+          if (Math.abs(denom) > 1e-12) {
+            pA = (remainingX - remainingP * vB.x) / denom
+            pB = remainingP - pA
+          } else {
+            if (Math.abs(remainingX - remainingP * vA.x) > 1e-6) {
+              continue
+            }
+            const minA = Math.max(vA.lb, remainingP - vB.ub)
+            const maxA = Math.min(vA.ub, remainingP - vB.lb)
+            if (minA > maxA + EPS) continue
+            if (objectiveChoice.kind === "component" && objectiveChoice.componentIndex === idxA) {
+              pA = objectiveChoice.direction === "min" ? minA : maxA
+            } else if (
+              objectiveChoice.kind === "component" &&
+              objectiveChoice.componentIndex === idxB
+            ) {
+              pA = objectiveChoice.direction === "min" ? maxA : minA
+            } else {
+              pA = Math.min(Math.max(midpoints[idxA], minA), maxA)
+            }
+            pB = remainingP - pA
+          }
+
+          if (pA < vA.lb - EPS || pA > vA.ub + EPS) continue
+          if (pB < vB.lb - EPS || pB > vB.ub + EPS) continue
+
+          const candidate = initFractions()
+          for (let k = 0; k < others.length; k++) {
+            const idx = others[k]
+            const v = variableByIndex[idx]
+            const useUpper = (mask >> k) & 1
+            candidate[idx] = useUpper ? v.ub : v.lb
+          }
+          candidate[idxA] = pA
+          candidate[idxB] = pB
+
+          let score: number
+          if (objectiveChoice.kind === "component") {
+            score = candidate[objectiveChoice.componentIndex]
+            if (objectiveChoice.direction === "max") score = -score
+          } else {
+            score = 0
+            for (const v of variable) {
+              const diff = candidate[v.index] - midpoints[v.index]
+              score += diff * diff
+            }
+          }
+
+          if (bestScore === null || score < bestScore) {
+            bestScore = score
+            bestFractions = candidate
+          }
+        }
+      }
+    }
+
+    return bestFractions
+  }
+
+  const computeXTotal = (fractions: number[]) => {
+    let x_total = 0
+    for (let i = 0; i < n; i++) {
+      x_total += fractions[i] * x_values[i]
+    }
+    return x_total
+  }
+
+  const selectBestCandidate = (candidates: number[][], objectiveChoice: Objective) => {
+    const filtered = candidates.filter(Boolean) as number[][]
+    if (filtered.length === 0) return null
+
+    if (objectiveChoice.kind === "component") {
+      const targetIdx = objectiveChoice.componentIndex
+      return filtered.reduce((best, candidate) => {
+        if (!best) return candidate
+        if (objectiveChoice.direction === "max") {
+          return candidate[targetIdx] > best[targetIdx] ? candidate : best
+        }
+        return candidate[targetIdx] < best[targetIdx] ? candidate : best
+      }, null as number[] | null)
+    }
+
+    return filtered[0]
+  }
+
+  let fractions = initFractions()
+  const xRange = computeXRange()
+  if (targetX !== null) {
+    const targetVar = targetX - fixed_x_contrib
+    if (targetVar < xRange.min - EPS || targetVar > xRange.max + EPS) {
+      return { error: "Target viscosity is not achievable with given constraints" }
+    }
+    const candidate = solveWithTargetX(targetX, objective)
+    if (!candidate) {
+      return { error: "No solution satisfies the target viscosity" }
+    }
+    fractions = candidate
+  } else if (minX !== null || maxX !== null) {
+    const minTarget = minX ?? -Infinity
+    const maxTarget = maxX ?? Infinity
+    const clampTarget = (value: number) => Math.min(Math.max(value, minTarget), maxTarget)
+
+    const baseCandidate = solveWithoutXConstraint(objective.kind === "component" ? objective : { kind: "none" })
+    const baseX = computeXTotal(baseCandidate)
+
+    const candidates: number[][] = []
+    if (baseX >= minTarget - EPS && baseX <= maxTarget + EPS) {
+      candidates.push(baseCandidate)
+    }
+
+    if (Number.isFinite(minTarget)) {
+      const candidate = solveWithTargetX(minTarget, objective)
+      if (candidate) candidates.push(candidate)
+    }
+
+    if (Number.isFinite(maxTarget) && maxTarget !== minTarget) {
+      const candidate = solveWithTargetX(maxTarget, objective)
+      if (candidate) candidates.push(candidate)
+    }
+
+    const chosen = selectBestCandidate(candidates, objective)
+    if (!chosen) {
+      const fallbackTarget = clampTarget(baseX)
+      const fallback = solveWithTargetX(fallbackTarget, objective)
+      if (!fallback) {
+        return { error: "No solution satisfies the viscosity range" }
+      }
+      fractions = fallback
+    } else {
+      fractions = chosen
+    }
+  } else {
+    fractions = solveWithoutXConstraint(objective)
   }
 
   // Calculate final mixture viscosity
-  let x_total = 0
-  for (let i = 0; i < n; i++) {
-    x_total += fractions[i] * x_values[i]
-  }
+  const x_total = computeXTotal(fractions)
   const viscosity = inverse_walther_x(x_total)
 
   // Build result
@@ -439,14 +695,73 @@ export function solve_complex_blend(
   // Determine variable ranges
   const variableRanges: Record<string, { min: number; max: number }> = {}
   for (const v of variable) {
+    let minValue = v.lb
+    let maxValue = v.ub
+
+    const minObjective: Objective = { kind: "component", direction: "min", componentIndex: v.index }
+    const maxObjective: Objective = { kind: "component", direction: "max", componentIndex: v.index }
+
+    if (targetX !== null) {
+      const minCandidate = solveWithTargetX(targetX, minObjective)
+      const maxCandidate = solveWithTargetX(targetX, maxObjective)
+      if (minCandidate) minValue = minCandidate[v.index]
+      if (maxCandidate) maxValue = maxCandidate[v.index]
+    } else if (minX !== null || maxX !== null) {
+      const candidatesMin: number[][] = []
+      const candidatesMax: number[][] = []
+      if (minX !== null) {
+        const candidateMin = solveWithTargetX(minX, minObjective)
+        const candidateMax = solveWithTargetX(minX, maxObjective)
+        if (candidateMin) candidatesMin.push(candidateMin)
+        if (candidateMax) candidatesMax.push(candidateMax)
+      }
+      if (maxX !== null) {
+        const candidateMin = solveWithTargetX(maxX, minObjective)
+        const candidateMax = solveWithTargetX(maxX, maxObjective)
+        if (candidateMin) candidatesMin.push(candidateMin)
+        if (candidateMax) candidatesMax.push(candidateMax)
+      }
+
+      const baseMin = solveWithoutXConstraint(minObjective)
+      const baseMax = solveWithoutXConstraint(maxObjective)
+      const baseMinX = computeXTotal(baseMin)
+      const baseMaxX = computeXTotal(baseMax)
+      if (baseMinX >= (minX ?? -Infinity) - EPS && baseMinX <= (maxX ?? Infinity) + EPS) {
+        candidatesMin.push(baseMin)
+      }
+      if (baseMaxX >= (minX ?? -Infinity) - EPS && baseMaxX <= (maxX ?? Infinity) + EPS) {
+        candidatesMax.push(baseMax)
+      }
+
+      const chosenMin = selectBestCandidate(candidatesMin, minObjective)
+      const chosenMax = selectBestCandidate(candidatesMax, maxObjective)
+      if (chosenMin) minValue = chosenMin[v.index]
+      if (chosenMax) maxValue = chosenMax[v.index]
+    } else {
+      const minCandidate = solveWithoutXConstraint(minObjective)
+      const maxCandidate = solveWithoutXConstraint(maxObjective)
+      if (minCandidate) minValue = minCandidate[v.index]
+      if (maxCandidate) maxValue = maxCandidate[v.index]
+    }
+
     variableRanges[String(v.index)] = {
-      min: v.lb * 100,
-      max: v.ub * 100,
+      min: minValue * 100,
+      max: maxValue * 100,
     }
   }
 
-  // Check if unique
-  const isUnique = variable.length <= 1 || targetX !== null
+  if (objective.kind !== "none") {
+    for (let i = 0; i < n; i++) {
+      if (result[i] !== undefined) {
+        variableRanges[String(i)] = { min: result[i], max: result[i] }
+      }
+    }
+  }
+
+  const isUnique =
+    objective.kind !== "none" ||
+    variable.length <= 1 ||
+    (targetX !== null && variable.length === 2)
 
   return {
     fractions: result,
