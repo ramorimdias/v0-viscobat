@@ -412,7 +412,9 @@ export function ComplexBlendsTab() {
                   const range = result.diagnostics.variableRanges[String(idx)]
                   return (
                     <div key={comp.id} className="p-3 rounded-lg bg-muted">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{comp.name}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 truncate">
+                        {comp.name}
+                      </p>
                       <p className="text-2xl font-bold font-mono">{fraction?.toFixed(2) ?? "—"}%</p>
                       {range && (
                         <p className="text-xs text-muted-foreground mt-1">
