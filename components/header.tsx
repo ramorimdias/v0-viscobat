@@ -14,6 +14,17 @@ export function Header({ onInfoClick }: HeaderProps) {
   const { language, setLanguage, t } = useLanguage()
 
   const handleReset = () => {
+    if (typeof window !== "undefined") {
+      const keysToClear = [
+        "viscobat:viscosity-index",
+        "viscobat:mixture",
+        "viscobat:target-viscosity",
+        "viscobat:temperature-extrapolation",
+        "viscobat:complex-blends",
+      ]
+
+      keysToClear.forEach((key) => window.localStorage.removeItem(key))
+    }
     window.location.reload()
   }
 
