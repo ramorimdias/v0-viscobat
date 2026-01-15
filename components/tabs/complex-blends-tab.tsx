@@ -3,13 +3,14 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
-import { useWaltherSettings } from "@/contexts/walther-context"
+import { useCorrelationSettings } from "@/contexts/correlation-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { solve_complex_blend } from "@/lib/viscosity-calculations"
+import { parseNumericInput } from "@/lib/number-utils"
 import { Puzzle, Plus, Trash2, Lightbulb, CheckCircle, AlertTriangle } from "lucide-react"
 
 type ConstraintType = "free" | "range" | "objectiveMin" | "objectiveMax" | "setValue"
@@ -26,7 +27,7 @@ interface SolverComponent {
 
 export function ComplexBlendsTab() {
   const { t } = useLanguage()
-  const { logBase } = useWaltherSettings()
+  const { correlation } = useCorrelationSettings()
   const [components, setComponents] = useState<SolverComponent[]>([
     { id: 1, name: "Base Oil A", viscosity: "", type: "free", value: "", min: "", max: "" },
     { id: 2, name: "Base Oil B", viscosity: "", type: "free", value: "", min: "", max: "" },
@@ -123,22 +124,22 @@ export function ComplexBlendsTab() {
     setResult(null)
 
     const comps = components.map((c) => ({
-      viscosity: Number.parseFloat(c.viscosity),
+      viscosity: parseNumericInput(c.viscosity),
       type: c.type,
-      value: c.value !== "" ? Number.parseFloat(c.value) : undefined,
-      min: c.min !== "" ? Number.parseFloat(c.min) : undefined,
-      max: c.max !== "" ? Number.parseFloat(c.max) : undefined,
+      value: c.value !== "" ? parseNumericInput(c.value) : undefined,
+      min: c.min !== "" ? parseNumericInput(c.min) : undefined,
+      max: c.max !== "" ? parseNumericInput(c.max) : undefined,
       name: c.name,
     }))
 
     const mixture = {
       type: mixtureType,
-      value: mixtureValue !== "" ? Number.parseFloat(mixtureValue) : undefined,
-      min: mixtureMin !== "" ? Number.parseFloat(mixtureMin) : undefined,
-      max: mixtureMax !== "" ? Number.parseFloat(mixtureMax) : undefined,
+      value: mixtureValue !== "" ? parseNumericInput(mixtureValue) : undefined,
+      min: mixtureMin !== "" ? parseNumericInput(mixtureMin) : undefined,
+      max: mixtureMax !== "" ? parseNumericInput(mixtureMax) : undefined,
     }
 
-    const solveResult = solve_complex_blend(comps, mixture, logBase)
+    const solveResult = solve_complex_blend(comps, mixture, correlation)
 
     if ("error" in solveResult) {
       setError(solveResult.error)
@@ -146,6 +147,35 @@ export function ComplexBlendsTab() {
       setResult(solveResult)
     }
   }
+
+  useEffect(() => {
+    if (!result && !error) return
+    const comps = components.map((c) => ({
+      viscosity: parseNumericInput(c.viscosity),
+      type: c.type,
+      value: c.value !== "" ? parseNumericInput(c.value) : undefined,
+      min: c.min !== "" ? parseNumericInput(c.min) : undefined,
+      max: c.max !== "" ? parseNumericInput(c.max) : undefined,
+      name: c.name,
+    }))
+
+    const mixture = {
+      type: mixtureType,
+      value: mixtureValue !== "" ? parseNumericInput(mixtureValue) : undefined,
+      min: mixtureMin !== "" ? parseNumericInput(mixtureMin) : undefined,
+      max: mixtureMax !== "" ? parseNumericInput(mixtureMax) : undefined,
+    }
+
+    const solveResult = solve_complex_blend(comps, mixture, correlation)
+
+    if ("error" in solveResult) {
+      setError(solveResult.error)
+      setResult(null)
+    } else {
+      setResult(solveResult)
+      setError(null)
+    }
+  }, [correlation])
 
   const constraintOptions = [
     { value: "free", label: t("solver_free") },
@@ -203,8 +233,8 @@ export function ComplexBlendsTab() {
                         {t("table_viscosity")} (mm²/s)
                       </label>
                       <Input
-                        type="number"
-                        step="any"
+                        type="text"
+                        inputMode="decimal"
                         min="0"
                         value={comp.viscosity}
                         onChange={(e) => updateComponent(comp.id, "viscosity", e.target.value)}
@@ -235,8 +265,8 @@ export function ComplexBlendsTab() {
                           {t("table_value")} (%)
                         </label>
                         <Input
-                          type="number"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           value={comp.value}
                           onChange={(e) => updateComponent(comp.id, "value", e.target.value)}
                           className="font-mono"
@@ -252,8 +282,8 @@ export function ComplexBlendsTab() {
                             {t("solver_min_value")} %
                           </label>
                           <Input
-                            type="number"
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
                             value={comp.min}
                             onChange={(e) => updateComponent(comp.id, "min", e.target.value)}
                             className="font-mono"
@@ -265,8 +295,8 @@ export function ComplexBlendsTab() {
                             {t("solver_max_value")} %
                           </label>
                           <Input
-                            type="number"
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
                             value={comp.max}
                             onChange={(e) => updateComponent(comp.id, "max", e.target.value)}
                             className="font-mono"
@@ -320,8 +350,8 @@ export function ComplexBlendsTab() {
                     {t("solver_mix_value")}
                   </Label>
                   <Input
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     value={mixtureValue}
                     onChange={(e) => setMixtureValue(e.target.value)}
                     className="font-mono mt-1"
@@ -336,8 +366,8 @@ export function ComplexBlendsTab() {
                       {t("solver_min_value")}
                     </Label>
                     <Input
-                      type="number"
-                      step="any"
+                      type="text"
+                      inputMode="decimal"
                       value={mixtureMin}
                       onChange={(e) => setMixtureMin(e.target.value)}
                       className="font-mono mt-1"
@@ -348,8 +378,8 @@ export function ComplexBlendsTab() {
                       {t("solver_max_value")}
                     </Label>
                     <Input
-                      type="number"
-                      step="any"
+                      type="text"
+                      inputMode="decimal"
                       value={mixtureMax}
                       onChange={(e) => setMixtureMax(e.target.value)}
                       className="font-mono mt-1"

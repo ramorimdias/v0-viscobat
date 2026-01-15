@@ -9,7 +9,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Viscobat - Viscosity Calculator",
-  description: "Professional viscosity calculation tool using Walther correlation for oil formulations",
+  description: "Professional viscosity calculation tool using Walther/Refutas correlation for oil formulations",
   generator: "v0.app",
   icons: {
     icon: "/images/icon.png",

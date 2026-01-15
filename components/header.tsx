@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { useLanguage } from "@/contexts/language-context"
-import { useWaltherSettings } from "@/contexts/walther-context"
+import { useCorrelationSettings } from "@/contexts/correlation-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { RotateCcw, Info } from "lucide-react"
@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export function Header({ onInfoClick }: HeaderProps) {
   const { language, setLanguage, t } = useLanguage()
-  const { logBase, setLogBase } = useWaltherSettings()
+  const { correlation, setCorrelation } = useCorrelationSettings()
 
   const handleReset = () => {
     if (typeof window !== "undefined") {
@@ -23,6 +23,7 @@ export function Header({ onInfoClick }: HeaderProps) {
         "viscobat:target-viscosity",
         "viscobat:temperature-extrapolation",
         "viscobat:complex-blends",
+        "viscobat:correlation",
         "viscobat:walther-log-base",
       ]
 
@@ -54,14 +55,14 @@ export function Header({ onInfoClick }: HeaderProps) {
           </Select>
 
           <div className="flex items-center gap-2">
-            <span className="hidden md:inline text-xs text-primary-foreground/70">{t("walther_log_base")}</span>
-            <Select value={logBase} onValueChange={(val) => setLogBase(val as "log10" | "ln")}>
-              <SelectTrigger className="w-24 h-9 text-sm bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground">
+            <span className="hidden md:inline text-xs text-primary-foreground/70">{t("correlation_label")}</span>
+            <Select value={correlation} onValueChange={(val) => setCorrelation(val as "walther" | "refutas")}>
+              <SelectTrigger className="w-28 h-9 text-sm bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="log10">log10</SelectItem>
-                <SelectItem value="ln">ln</SelectItem>
+                <SelectItem value="walther">Walther</SelectItem>
+                <SelectItem value="refutas">Refutas</SelectItem>
               </SelectContent>
             </Select>
           </div>

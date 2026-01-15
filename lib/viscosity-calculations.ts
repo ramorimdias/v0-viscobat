@@ -1,29 +1,28 @@
 /**
- * Walther correlation for viscosity-temperature relationships.
- * x = log10(log10(v + 0.7)) or ln(ln(v + 0.8)) depending on the log base.
+ * Walther/Refutas correlations for viscosity-temperature relationships.
+ * Walther: x = log10(log10(v + 0.7))
+ * Refutas: x = 14.534 * ln(ln(v + 0.8)) + 10.975
  */
 
-export type WaltherLogBase = "log10" | "ln"
+export type CorrelationType = "walther" | "refutas"
 
-const WALTHER_OFFSET: Record<WaltherLogBase, number> = {
-  log10: 0.7,
-  ln: 0.8,
+const waltherLog = (value: number) => Math.log10(value)
+const waltherPow = (value: number) => Math.pow(10, value)
+const refutasLog = (value: number) => Math.log(value)
+const refutasPow = (value: number) => Math.exp(value)
+
+export function walther_x(viscosity: number, correlation: CorrelationType = "walther"): number {
+  if (correlation === "refutas") {
+    return 14.534 * refutasLog(refutasLog(viscosity + 0.8)) + 10.975
+  }
+  return waltherLog(waltherLog(viscosity + 0.7))
 }
 
-const waltherLog = (value: number, base: WaltherLogBase) =>
-  base === "ln" ? Math.log(value) : Math.log10(value)
-
-const waltherPow = (value: number, base: WaltherLogBase) =>
-  base === "ln" ? Math.exp(value) : Math.pow(10, value)
-
-export function walther_x(viscosity: number, base: WaltherLogBase = "log10"): number {
-  const offset = WALTHER_OFFSET[base]
-  return waltherLog(waltherLog(viscosity + offset, base), base)
-}
-
-export function inverse_walther_x(x: number, base: WaltherLogBase = "log10"): number {
-  const offset = WALTHER_OFFSET[base]
-  return waltherPow(waltherPow(x, base), base) - offset
+export function inverse_walther_x(x: number, correlation: CorrelationType = "walther"): number {
+  if (correlation === "refutas") {
+    return refutasPow(refutasPow((x - 10.975) / 14.534)) - 0.8
+  }
+  return waltherPow(waltherPow(x)) - 0.7
 }
 
 export function walther_params(
@@ -31,12 +30,12 @@ export function walther_params(
   t1: number,
   v2: number,
   t2: number,
-  base: WaltherLogBase = "log10",
+  correlation: CorrelationType = "walther",
 ) {
-  const x1 = walther_x(v1, base)
-  const x2 = walther_x(v2, base)
-  const y1 = waltherLog(t1 + 273.15, base)
-  const y2 = waltherLog(t2 + 273.15, base)
+  const x1 = walther_x(v1, correlation)
+  const x2 = walther_x(v2, correlation)
+  const y1 = correlation === "refutas" ? refutasLog(t1 + 273.15) : waltherLog(t1 + 273.15)
+  const y2 = correlation === "refutas" ? refutasLog(t2 + 273.15) : waltherLog(t2 + 273.15)
 
   if (Math.abs(y2 - y1) < 1e-12) {
     return { slope: 0, intercept: x1 }
@@ -51,10 +50,11 @@ export function walther_viscosity_at_temp(
   slope: number,
   intercept: number,
   temp_c: number,
-  base: WaltherLogBase = "log10",
+  correlation: CorrelationType = "walther",
 ): number {
-  const x = intercept - slope * waltherLog(temp_c + 273.15, base)
-  return inverse_walther_x(x, base)
+  const tempLog = correlation === "refutas" ? refutasLog : waltherLog
+  const x = intercept - slope * tempLog(temp_c + 273.15)
+  return inverse_walther_x(x, correlation)
 }
 
 export function compute_vi_from_v40_v100(u: number, y: number): number {
@@ -109,7 +109,7 @@ export function compute_vi_from_v40_v100(u: number, y: number): number {
 export function compute_mixture(
   viscosities: number[],
   fractions: number[],
-  base: WaltherLogBase = "log10",
+  correlation: CorrelationType = "walther",
 ): number {
   if (viscosities.length !== fractions.length || viscosities.length === 0) {
     return Number.NaN
@@ -117,7 +117,7 @@ export function compute_mixture(
 
   const x_values = viscosities.map((v) => {
     if (v <= 0) return Number.NaN
-    return walther_x(v, base)
+    return walther_x(v, correlation)
   })
 
   if (x_values.some((x) => Number.isNaN(x))) return Number.NaN
@@ -127,7 +127,7 @@ export function compute_mixture(
     x_mix += fractions[i] * x_values[i]
   }
 
-  return inverse_walther_x(x_mix, base)
+  return inverse_walther_x(x_mix, correlation)
 }
 
 export function solve_two_bases(
@@ -135,7 +135,7 @@ export function solve_two_bases(
   baseAViscosity: number,
   baseBViscosity: number,
   knownComponents: { percent: number; viscosity: number }[],
-  base: WaltherLogBase = "log10",
+  correlation: CorrelationType = "walther",
 ): { percentA: number; percentB: number } | { error: string } {
   if (targetViscosity <= 0 || baseAViscosity <= 0 || baseBViscosity <= 0) {
     return { error: "Viscosities must be positive" }
@@ -149,16 +149,16 @@ export function solve_two_bases(
       return { error: "Viscosities must be positive" }
     }
     sum_known += comp.percent / 100
-    x_known_sum += (comp.percent / 100) * walther_x(comp.viscosity, base)
+    x_known_sum += (comp.percent / 100) * walther_x(comp.viscosity, correlation)
   }
 
   if (sum_known >= 1) {
     return { error: "Sum of known percentages must be less than 100" }
   }
 
-  const x_target = walther_x(targetViscosity, base)
-  const x_A = walther_x(baseAViscosity, base)
-  const x_B = walther_x(baseBViscosity, base)
+  const x_target = walther_x(targetViscosity, correlation)
+  const x_A = walther_x(baseAViscosity, correlation)
+  const x_B = walther_x(baseBViscosity, correlation)
   const p_remaining = 1 - sum_known
 
   const denominator = x_A - x_B
@@ -215,7 +215,7 @@ export function linear_regression(
 
 export function walther_regression(
   points: { temperature: number; viscosity: number }[],
-  base: WaltherLogBase = "log10",
+  correlation: CorrelationType = "walther",
 ): { slope: number; intercept: number } | null {
   if (points.length < 2) return null
 
@@ -224,8 +224,10 @@ export function walther_regression(
 
   for (const pt of points) {
     if (pt.viscosity <= 0 || pt.temperature <= -273.15) continue
-    walther_x_vals.push(walther_x(pt.viscosity, base))
-    walther_y_vals.push(waltherLog(pt.temperature + 273.15, base))
+    walther_x_vals.push(walther_x(pt.viscosity, correlation))
+    walther_y_vals.push(
+      correlation === "refutas" ? refutasLog(pt.temperature + 273.15) : waltherLog(pt.temperature + 273.15),
+    )
   }
 
   if (walther_x_vals.length < 2) return null
@@ -283,7 +285,7 @@ interface SolverResult {
 export function solve_complex_blend(
   components: SolverComponent[],
   mixture: SolverMixture,
-  base: WaltherLogBase = "log10",
+  correlation: CorrelationType = "walther",
 ): SolverResult | { error: string } {
   const EPS = 1e-9
   const n = components.length
@@ -311,7 +313,7 @@ export function solve_complex_blend(
   }
 
   // Calculate x values for each component
-  const x_values = components.map((c) => walther_x(c.viscosity, base))
+  const x_values = components.map((c) => walther_x(c.viscosity, correlation))
 
   // Separate fixed and variable components
   const fixed: { index: number; fraction: number }[] = []
@@ -352,7 +354,7 @@ export function solve_complex_blend(
     if (Math.abs(fixed_sum - 1) > 1e-6) {
       return { error: "Sum of fixed components must be exactly 100%" }
     }
-    const v_mix = inverse_walther_x(fixed_x_contrib, base)
+    const v_mix = inverse_walther_x(fixed_x_contrib, correlation)
 
     if (mixture.type === "setValue" && mixture.value !== undefined) {
       if (Math.abs(v_mix - mixture.value) > 1e-6) {
@@ -387,10 +389,10 @@ export function solve_complex_blend(
   let maxX: number | null = null
 
   if (mixture.type === "setValue" && mixture.value !== undefined) {
-    targetX = walther_x(mixture.value, base)
+    targetX = walther_x(mixture.value, correlation)
   } else if (mixture.type === "range") {
-    if (mixture.min !== undefined) minX = walther_x(mixture.min, base)
-    if (mixture.max !== undefined) maxX = walther_x(mixture.max, base)
+    if (mixture.min !== undefined) minX = walther_x(mixture.min, correlation)
+    if (mixture.max !== undefined) maxX = walther_x(mixture.max, correlation)
   }
 
   const totalLb = variable.reduce((acc, v) => acc + v.lb, 0)
@@ -717,7 +719,7 @@ export function solve_complex_blend(
 
   // Calculate final mixture viscosity
   const x_total = computeXTotal(fractions)
-  const viscosity = inverse_walther_x(x_total, base)
+  const viscosity = inverse_walther_x(x_total, correlation)
 
   // Build result
   const result: Record<number, number> = {}

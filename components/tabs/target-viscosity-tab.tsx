@@ -3,12 +3,13 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
-import { useWaltherSettings } from "@/contexts/walther-context"
+import { useCorrelationSettings } from "@/contexts/correlation-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { solve_two_bases } from "@/lib/viscosity-calculations"
+import { parseNumericInput } from "@/lib/number-utils"
 import { Target, Plus, Trash2, Lightbulb } from "lucide-react"
 
 interface KnownComponent {
@@ -19,7 +20,7 @@ interface KnownComponent {
 
 export function TargetViscosityTab() {
   const { t } = useLanguage()
-  const { logBase } = useWaltherSettings()
+  const { correlation } = useCorrelationSettings()
   const [targetVisc, setTargetVisc] = useState("")
   const [baseA, setBaseA] = useState("")
   const [baseB, setBaseB] = useState("")
@@ -78,9 +79,9 @@ export function TargetViscosityTab() {
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault()
 
-    const target = Number.parseFloat(targetVisc)
-    const baseAVisc = Number.parseFloat(baseA)
-    const baseBVisc = Number.parseFloat(baseB)
+    const target = parseNumericInput(targetVisc)
+    const baseAVisc = parseNumericInput(baseA)
+    const baseBVisc = parseNumericInput(baseB)
 
     if (isNaN(target) || isNaN(baseAVisc) || isNaN(baseBVisc)) {
       setResult({ error: t("error") })
@@ -90,14 +91,37 @@ export function TargetViscosityTab() {
     const known = knownComponents
       .filter((c) => c.percent !== "" && c.viscosity !== "")
       .map((c) => ({
-        percent: Number.parseFloat(c.percent),
-        viscosity: Number.parseFloat(c.viscosity),
+        percent: parseNumericInput(c.percent),
+        viscosity: parseNumericInput(c.viscosity),
       }))
       .filter((c) => !isNaN(c.percent) && !isNaN(c.viscosity) && c.percent > 0)
 
-    const solveResult = solve_two_bases(target, baseAVisc, baseBVisc, known, logBase)
+    const solveResult = solve_two_bases(target, baseAVisc, baseBVisc, known, correlation)
     setResult(solveResult)
   }
+
+  useEffect(() => {
+    if (!result) return
+    const target = parseNumericInput(targetVisc)
+    const baseAVisc = parseNumericInput(baseA)
+    const baseBVisc = parseNumericInput(baseB)
+
+    if (isNaN(target) || isNaN(baseAVisc) || isNaN(baseBVisc)) {
+      setResult({ error: t("error") })
+      return
+    }
+
+    const known = knownComponents
+      .filter((c) => c.percent !== "" && c.viscosity !== "")
+      .map((c) => ({
+        percent: parseNumericInput(c.percent),
+        viscosity: parseNumericInput(c.viscosity),
+      }))
+      .filter((c) => !isNaN(c.percent) && !isNaN(c.viscosity) && c.percent > 0)
+
+    const solveResult = solve_two_bases(target, baseAVisc, baseBVisc, known, correlation)
+    setResult(solveResult)
+  }, [correlation])
 
   return (
     <div className="space-y-6">
@@ -126,8 +150,8 @@ export function TargetViscosityTab() {
                 </Label>
                 <Input
                   id="tb-target"
-                  type="number"
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   value={targetVisc}
                   onChange={(e) => setTargetVisc(e.target.value)}
                   placeholder="e.g. 100"
@@ -147,8 +171,8 @@ export function TargetViscosityTab() {
                   </Label>
                   <Input
                     id="tb-baseA"
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     value={baseA}
                     onChange={(e) => setBaseA(e.target.value)}
                     placeholder="mm²/s"
@@ -165,8 +189,8 @@ export function TargetViscosityTab() {
                   </Label>
                   <Input
                     id="tb-baseB"
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     value={baseB}
                     onChange={(e) => setBaseB(e.target.value)}
                     placeholder="mm²/s"
@@ -198,8 +222,8 @@ export function TargetViscosityTab() {
                         </div>
                         <div className="flex-1 grid grid-cols-2 gap-3">
                           <Input
-                            type="number"
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
                             min="0"
                             value={comp.percent}
                             onChange={(e) => updateKnown(comp.id, "percent", e.target.value)}
@@ -207,8 +231,8 @@ export function TargetViscosityTab() {
                             className="font-mono"
                           />
                           <Input
-                            type="number"
-                            step="any"
+                            type="text"
+                            inputMode="decimal"
                             min="0"
                             value={comp.viscosity}
                             onChange={(e) => updateKnown(comp.id, "viscosity", e.target.value)}

@@ -11,7 +11,7 @@ import { TargetViscosityTab } from "@/components/tabs/target-viscosity-tab"
 import { ComplexBlendsTab } from "@/components/tabs/complex-blends-tab"
 import { InfoModal } from "@/components/info-modal"
 import { LanguageProvider } from "@/contexts/language-context"
-import { WaltherProvider } from "@/contexts/walther-context"
+import { CorrelationProvider } from "@/contexts/correlation-context"
 
 export default function ViscobatApp() {
   const [activeTab, setActiveTab] = useState("vi")
@@ -19,7 +19,7 @@ export default function ViscobatApp() {
 
   return (
     <LanguageProvider>
-      <WaltherProvider>
+      <CorrelationProvider>
         <div className="flex flex-col min-h-screen bg-background">
           <Header onInfoClick={() => setIsModalOpen(true)} />
           <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
@@ -33,7 +33,7 @@ export default function ViscobatApp() {
           <Footer />
           <InfoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         </div>
-      </WaltherProvider>
+      </CorrelationProvider>
     </LanguageProvider>
   )
 }
