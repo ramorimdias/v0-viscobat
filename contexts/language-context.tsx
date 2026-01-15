@@ -34,8 +34,8 @@ const translations: Record<string, Record<Language, string>> = {
     EN: "Calculate viscosity index from two temperature/viscosity data points using ASTM D2270",
   },
   temp_description: {
-    FR: "Extrapolez les propriétés du fluide à différentes températures en utilisant la corrélation de Walther",
-    EN: "Extrapolate fluid properties at different temperatures using the Walther correlation",
+    FR: "Extrapolez les propriétés du fluide à différentes températures en utilisant la corrélation Walther/Refutas",
+    EN: "Extrapolate fluid properties at different temperatures using the Walther/Refutas correlation",
   },
   mixture_description: {
     FR: "Calculez la viscosité d'un mélange à partir des pourcentages massiques de ses constituants",
@@ -59,6 +59,7 @@ const translations: Record<string, Record<Language, string>> = {
   label_target_mix: { FR: "Viscosité du mélange cible (mm²/s)", EN: "Target mixture viscosity (mm²/s)" },
   label_baseA: { FR: "Viscosité du constituant A (mm²/s)", EN: "Viscosity of component A (mm²/s)" },
   label_baseB: { FR: "Viscosité du constituant B (mm²/s)", EN: "Viscosity of component B (mm²/s)" },
+  correlation_label: { FR: "Corrélation", EN: "Correlation" },
 
   // Card titles
   input_data: { FR: "Données d'entrée", EN: "Input Data" },
@@ -139,7 +140,7 @@ const translations: Record<string, Record<Language, string>> = {
   subtab_thermal: { FR: "Conductivité (W/mK)", EN: "Conductivity (W/mK)" },
 
   // Equations
-  walther_equation: { FR: "Ajustement log-log (Walther) :", EN: "Log-log fit (Walther):" },
+  walther_equation: { FR: "Corrélation (Walther/Refutas) :", EN: "Correlation (Walther/Refutas):" },
   linear_equation: { FR: "Régression linéaire :", EN: "Linear regression:" },
 
   // Messages
@@ -160,12 +161,12 @@ const translations: Record<string, Record<Language, string>> = {
   modal_version: { FR: "Version", EN: "Version" },
   modal_author: { FR: "Auteur", EN: "Author" },
   modal_description: {
-    FR: "La corrélation logarithmique de Walther est le cœur de cet outil, permettant d'établir avec précision le lien entre viscosité et température pour accompagner vos formulations.",
-    EN: "The Walther log correlation is the heart of this tool, enabling a precise link between viscosity and temperature to support your formulations.",
+    FR: "La corrélation logarithmique Walther/Refutas est le cœur de cet outil, permettant d'établir avec précision le lien entre viscosité et température pour accompagner vos formulations.",
+    EN: "The Walther/Refutas log correlation is the heart of this tool, enabling a precise link between viscosity and temperature to support your formulations.",
   },
   modal_footer: {
-    FR: "Développé avec Next.js et la corrélation de Walther pour une modélisation précise viscosité-température.",
-    EN: "Built with Next.js and the Walther correlation for accurate viscosity-temperature modeling.",
+    FR: "Développé avec Next.js et la corrélation Walther/Refutas pour une modélisation précise viscosité-température.",
+    EN: "Built with Next.js and the Walther/Refutas correlation for accurate viscosity-temperature modeling.",
   },
 
   // Tips
@@ -175,16 +176,16 @@ const translations: Record<string, Record<Language, string>> = {
     EN: "The Viscosity Index (VI) indicates how much an oil's viscosity changes with temperature. Higher VI means more stable viscosity. Most modern engine oils have VI between 95-170.",
   },
   tip_mixture: {
-    FR: "La somme des pourcentages massiques doit être égale à 100%. La viscosité du mélange est calculée en utilisant la moyenne de Walther des logarithmes.",
-    EN: "The sum of mass percentages must equal 100%. The mixture viscosity is calculated using the Walther averaging of logarithms.",
+    FR: "La somme des pourcentages massiques doit être égale à 100%. La viscosité du mélange est calculée en utilisant la moyenne Walther/Refutas des logarithmes.",
+    EN: "The sum of mass percentages must equal 100%. The mixture viscosity is calculated using the Walther/Refutas averaging of logarithms.",
   },
   tip_target: {
     FR: "Cette fonction résout les proportions exactes de deux constituants nécessaires pour obtenir une viscosité de mélange spécifique.",
     EN: "This solves for the exact proportions of two components needed to achieve a specific mixture viscosity.",
   },
   tip_temp: {
-    FR: "Ajoutez au moins 2 points de données pour générer une courbe de régression. La corrélation de Walther est utilisée pour la viscosité, la régression linéaire pour les autres propriétés.",
-    EN: "Add at least 2 data points to generate a regression curve. Walther correlation is used for viscosity, linear regression for other properties.",
+    FR: "Ajoutez au moins 2 points de données pour générer une courbe de régression. La corrélation Walther/Refutas est utilisée pour la viscosité, la régression linéaire pour les autres propriétés.",
+    EN: "Add at least 2 data points to generate a regression curve. Walther/Refutas correlation is used for viscosity, linear regression for other properties.",
   },
   tip_solver: {
     FR: "Définissez les contraintes de chaque constituant : libre, dans un intervalle, minimiser, maximiser ou fixer une valeur exacte.",

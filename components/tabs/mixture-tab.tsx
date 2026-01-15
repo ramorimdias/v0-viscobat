@@ -3,10 +3,12 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
+import { useCorrelationSettings } from "@/contexts/correlation-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { compute_mixture } from "@/lib/viscosity-calculations"
+import { parseNumericInput } from "@/lib/number-utils"
 import { Plus, Trash2, FlaskConical, Lightbulb } from "lucide-react"
 
 interface Component {
@@ -17,6 +19,7 @@ interface Component {
 
 export function MixtureTab() {
   const { t } = useLanguage()
+  const { correlation } = useCorrelationSettings()
   const [components, setComponents] = useState<Component[]>([
     { id: 1, percent: "", viscosity: "" },
     { id: 2, percent: "", viscosity: "" },
@@ -72,7 +75,7 @@ export function MixtureTab() {
   }
 
   const totalPercent = components.reduce((sum, c) => {
-    const val = Number.parseFloat(c.percent)
+    const val = parseNumericInput(c.percent)
     return sum + (isNaN(val) ? 0 : val)
   }, 0)
 
@@ -82,8 +85,8 @@ export function MixtureTab() {
     const validComponents = components
       .filter((c) => c.percent !== "" && c.viscosity !== "")
       .map((c) => ({
-        percent: Number.parseFloat(c.percent),
-        viscosity: Number.parseFloat(c.viscosity),
+        percent: parseNumericInput(c.percent),
+        viscosity: parseNumericInput(c.viscosity),
       }))
       .filter((c) => !isNaN(c.percent) && !isNaN(c.viscosity) && c.percent > 0)
 
@@ -100,7 +103,7 @@ export function MixtureTab() {
 
     const viscosities = validComponents.map((c) => c.viscosity)
     const fractions = validComponents.map((c) => c.percent / 100)
-    const mixtureVisc = compute_mixture(viscosities, fractions)
+    const mixtureVisc = compute_mixture(viscosities, fractions, correlation)
 
     if (isNaN(mixtureVisc)) {
       setResult({ error: t("error") })
@@ -108,6 +111,38 @@ export function MixtureTab() {
       setResult({ viscosity: mixtureVisc })
     }
   }
+
+  useEffect(() => {
+    if (!result) return
+    const validComponents = components
+      .filter((c) => c.percent !== "" && c.viscosity !== "")
+      .map((c) => ({
+        percent: parseNumericInput(c.percent),
+        viscosity: parseNumericInput(c.viscosity),
+      }))
+      .filter((c) => !isNaN(c.percent) && !isNaN(c.viscosity) && c.percent > 0)
+
+    if (validComponents.length === 0) {
+      setResult({ error: t("no_components") })
+      return
+    }
+
+    const total = validComponents.reduce((sum, c) => sum + c.percent, 0)
+    if (Math.abs(total - 100) > 1e-6) {
+      setResult({ error: t("sum_must_100") })
+      return
+    }
+
+    const viscosities = validComponents.map((c) => c.viscosity)
+    const fractions = validComponents.map((c) => c.percent / 100)
+    const mixtureVisc = compute_mixture(viscosities, fractions, correlation)
+
+    if (isNaN(mixtureVisc)) {
+      setResult({ error: t("error") })
+    } else {
+      setResult({ viscosity: mixtureVisc })
+    }
+  }, [correlation])
 
   return (
     <div className="space-y-6">
@@ -146,8 +181,8 @@ export function MixtureTab() {
                           {t("table_percent")}
                         </label>
                         <Input
-                          type="number"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           min="0"
                           max="100"
                           value={comp.percent}
@@ -161,8 +196,8 @@ export function MixtureTab() {
                           {t("table_viscosity")} (mm²/s)
                         </label>
                         <Input
-                          type="number"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           min="0"
                           value={comp.viscosity}
                           onChange={(e) => updateComponent(comp.id, "viscosity", e.target.value)}
