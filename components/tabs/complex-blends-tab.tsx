@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
+import { useWaltherSettings } from "@/contexts/walther-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,6 +26,7 @@ interface SolverComponent {
 
 export function ComplexBlendsTab() {
   const { t } = useLanguage()
+  const { logBase } = useWaltherSettings()
   const [components, setComponents] = useState<SolverComponent[]>([
     { id: 1, name: "Base Oil A", viscosity: "", type: "free", value: "", min: "", max: "" },
     { id: 2, name: "Base Oil B", viscosity: "", type: "free", value: "", min: "", max: "" },
@@ -136,7 +138,7 @@ export function ComplexBlendsTab() {
       max: mixtureMax !== "" ? Number.parseFloat(mixtureMax) : undefined,
     }
 
-    const solveResult = solve_complex_blend(comps, mixture)
+    const solveResult = solve_complex_blend(comps, mixture, logBase)
 
     if ("error" in solveResult) {
       setError(solveResult.error)

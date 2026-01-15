@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
+import { useWaltherSettings } from "@/contexts/walther-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -17,6 +18,7 @@ interface Component {
 
 export function MixtureTab() {
   const { t } = useLanguage()
+  const { logBase } = useWaltherSettings()
   const [components, setComponents] = useState<Component[]>([
     { id: 1, percent: "", viscosity: "" },
     { id: 2, percent: "", viscosity: "" },
@@ -100,7 +102,7 @@ export function MixtureTab() {
 
     const viscosities = validComponents.map((c) => c.viscosity)
     const fractions = validComponents.map((c) => c.percent / 100)
-    const mixtureVisc = compute_mixture(viscosities, fractions)
+    const mixtureVisc = compute_mixture(viscosities, fractions, logBase)
 
     if (isNaN(mixtureVisc)) {
       setResult({ error: t("error") })

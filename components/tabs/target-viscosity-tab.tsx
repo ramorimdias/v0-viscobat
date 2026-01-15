@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
+import { useWaltherSettings } from "@/contexts/walther-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +19,7 @@ interface KnownComponent {
 
 export function TargetViscosityTab() {
   const { t } = useLanguage()
+  const { logBase } = useWaltherSettings()
   const [targetVisc, setTargetVisc] = useState("")
   const [baseA, setBaseA] = useState("")
   const [baseB, setBaseB] = useState("")
@@ -93,7 +95,7 @@ export function TargetViscosityTab() {
       }))
       .filter((c) => !isNaN(c.percent) && !isNaN(c.viscosity) && c.percent > 0)
 
-    const solveResult = solve_two_bases(target, baseAVisc, baseBVisc, known)
+    const solveResult = solve_two_bases(target, baseAVisc, baseBVisc, known, logBase)
     setResult(solveResult)
   }
 

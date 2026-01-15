@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
+import { useWaltherSettings } from "@/contexts/walther-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +13,7 @@ import { Calculator, Lightbulb } from "lucide-react"
 
 export function ViscosityIndexTab() {
   const { t } = useLanguage()
+  const { logBase } = useWaltherSettings()
   const [v1, setV1] = useState("")
   const [t1, setT1] = useState("40")
   const [v2, setV2] = useState("")
@@ -63,9 +65,9 @@ export function ViscosityIndexTab() {
 
     if (isNaN(v1Num) || isNaN(t1Num) || isNaN(v2Num) || isNaN(t2Num)) return
 
-    const params = walther_params(v1Num, t1Num, v2Num, t2Num)
-    const v40 = walther_viscosity_at_temp(params.slope, params.intercept, 40)
-    const v100 = walther_viscosity_at_temp(params.slope, params.intercept, 100)
+    const params = walther_params(v1Num, t1Num, v2Num, t2Num, logBase)
+    const v40 = walther_viscosity_at_temp(params.slope, params.intercept, 40, logBase)
+    const v100 = walther_viscosity_at_temp(params.slope, params.intercept, 100, logBase)
     const vi = compute_vi_from_v40_v100(v40, v100)
 
     setResult({ v40, v100, vi })

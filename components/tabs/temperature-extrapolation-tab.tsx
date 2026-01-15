@@ -3,6 +3,7 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useLanguage } from "@/contexts/language-context"
+import { useWaltherSettings } from "@/contexts/walther-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +23,7 @@ interface DataPoint {
 
 export function TemperatureExtrapolationTab() {
   const { t } = useLanguage()
+  const { logBase } = useWaltherSettings()
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("kv")
   const [kvPoints, setKvPoints] = useState<DataPoint[]>([
     { id: 1, temperature: "40", value: "" },
@@ -233,23 +235,27 @@ export function TemperatureExtrapolationTab() {
     if (activeSubTab === "kv") {
       const params = walther_regression(
         validPoints.map((p) => ({ temperature: p.temperature, viscosity: p.viscosity })),
+        logBase,
       )
       if (!params) return
 
       const table: { temp: number; value: number }[] = []
       const chartData: { x: number; y: number }[] = []
       for (let T = -20; T <= 100; T += 10) {
-        const visc = walther_viscosity_at_temp(params.slope, params.intercept, T)
+        const visc = walther_viscosity_at_temp(params.slope, params.intercept, T, logBase)
         table.push({ temp: T, value: visc })
         chartData.push({ x: T, y: visc })
       }
 
       let targetValue: number | null = null
       if (!isNaN(targetTempNum)) {
-        targetValue = walther_viscosity_at_temp(params.slope, params.intercept, targetTempNum)
+        targetValue = walther_viscosity_at_temp(params.slope, params.intercept, targetTempNum, logBase)
       }
 
-      const equation = `KV(T) = 10^(10^(${params.intercept.toFixed(4)} − ${params.slope.toFixed(4)} · log₁₀(T + 273.15))) − 0.7`
+      const equation =
+        logBase === "ln"
+          ? `KV(T) = e^(e^(${params.intercept.toFixed(4)} − ${params.slope.toFixed(4)} · ln(T + 273.15))) − 0.8`
+          : `KV(T) = 10^(10^(${params.intercept.toFixed(4)} − ${params.slope.toFixed(4)} · log₁₀(T + 273.15))) − 0.7`
 
       setKvResult({
         table,

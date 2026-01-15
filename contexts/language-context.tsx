@@ -59,6 +59,7 @@ const translations: Record<string, Record<Language, string>> = {
   label_target_mix: { FR: "Viscosité du mélange cible (mm²/s)", EN: "Target mixture viscosity (mm²/s)" },
   label_baseA: { FR: "Viscosité du constituant A (mm²/s)", EN: "Viscosity of component A (mm²/s)" },
   label_baseB: { FR: "Viscosité du constituant B (mm²/s)", EN: "Viscosity of component B (mm²/s)" },
+  walther_log_base: { FR: "Base log", EN: "Log base" },
 
   // Card titles
   input_data: { FR: "Données d'entrée", EN: "Input Data" },
